@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mundo Wumpus</title>
+<style>
+  :root {
+    --fundo: #14110f;
+    --painel: #221d1a;
+    --painel2: #2c2622;
+    --borda: #3d3530;
+    --texto: #ece6df;
+    --suave: #a39a91;
+    --ouro: #f2b632;
+    --perigo: #e0533d;
+    --bom: #5cc07a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(ellipse at top, #231c17, var(--fundo) 70%);
+    color: var(--texto);
+    font: 15px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+    padding: 12px 20px; border-bottom: 1px solid var(--borda); background: #1a1613;
+  }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: .5px; color: var(--ouro); }
+  #config { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  #config label { display: flex; align-items: center; gap: 6px; color: var(--suave); font-size: 14px; }
+  select, input[type=number] {
+    background: var(--painel2); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 6px; padding: 5px 8px; font: inherit;
+  }
+  input[type=number] { width: 76px; }
+  button {
+    background: var(--painel2); color: var(--texto); border: 1px solid var(--borda);
+    border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer;
+    transition: background .15s, transform .08s;
+  }
+  button:hover:not(:disabled) { background: #3a322c; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primario { background: var(--ouro); color: #231a05; border-color: #c48f16; font-weight: 600; }
+  button.primario:hover:not(:disabled) { background: #ffc94d; }
+  kbd {
+    display: inline-block; min-width: 18px; padding: 0 4px; margin-left: 4px;
+    border: 1px solid var(--borda); border-radius: 4px; background: #181412;
+    font: 11px/16px ui-monospace, monospace; color: var(--suave); text-align: center;
+  }
+
+  main {
+    display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start;
+    padding: 20px;
+  }
+  #area { flex: 1 1 420px; max-width: 760px; display: flex; flex-direction: column; align-items: center; }
+  #lateral { flex: 0 1 340px; min-width: 280px; display: flex; flex-direction: column; gap: 14px; }
+  .cartao { background: var(--painel); border: 1px solid var(--borda); border-radius: 12px; padding: 14px; }
+  .cartao h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--suave); }
+
+  /* ------------------------------------------------------------ tabuleiro */
+  #moldura { position: relative; padding: 10px; border-radius: 14px; background: #0c0a09; box-shadow: 0 10px 40px #000a, inset 0 0 0 1px var(--borda); }
+  #tabuleiro {
+    position: relative; overflow: hidden; border-radius: 8px;
+    --s: 100px; --t-agente: .72; --t-wumpus: .82; --t-ouro: .5; --t-poco: .9; --t-flecha: .6;
+  }
+  .itens { position: absolute; inset: 0; }
+  #tabuleiro.tremer { animation: tremer .35s; }
+  @keyframes tremer {
+    20% { transform: translate(-5px, 2px); } 40% { transform: translate(5px, -2px); }
+    60% { transform: translate(-3px, 1px); } 80% { transform: translate(3px, 0); }
+  }
+  .casa { position: absolute; width: var(--s); height: var(--s); }
+  .chao {
+    position: absolute; inset: 0; background-color: #3a302a; background-size: cover;
+    box-shadow: inset 0 0 0 1px #0006; transition: filter .5s;
+  }
+  .casa.inexplorada .chao { filter: brightness(.55) saturate(.7); }
+  .casa.inicio .chao::after {
+    content: "SAÍDA"; position: absolute; right: 4px; top: 3px;
+    font-size: calc(var(--s) * .11); font-weight: 700; color: #7fd497; opacity: .8; letter-spacing: 1px;
+  }
+  .coord { position: absolute; left: 4px; top: 2px; font-size: calc(var(--s) * .11); color: #fff5; pointer-events: none; }
+  .nevoa {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background: radial-gradient(circle, #1a1512 0%, #080605 90%);
+    display: flex; align-items: center; justify-content: center;
+    color: #ffffff22; font-size: calc(var(--s) * .38); font-weight: 700;
+    transition: opacity .6s ease;
+  }
+  .casa.visivel .nevoa { opacity: 0; }
+  .sensacoes {
+    position: absolute; left: 3px; bottom: 2px; z-index: 3; display: flex; gap: 1px;
+    font-size: calc(var(--s) * .17); line-height: 1; pointer-events: none;
+    filter: drop-shadow(0 1px 1px #000);
+  }
+  .item {
+    position: absolute; left: 50%; top: 50%; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    transform: translate(-50%, -50%);
+  }
+  .item.poco { width: calc(var(--s) * var(--t-poco)); height: calc(var(--s) * var(--t-poco)); z-index: 1; }
+  .item.wumpus { width: calc(var(--s) * var(--t-wumpus)); height: calc(var(--s) * var(--t-wumpus)); }
+  .item.ouro { width: calc(var(--s) * var(--t-ouro)); height: calc(var(--s) * var(--t-ouro)); animation: brilhar 1.8s ease-in-out infinite; }
+  .item.ouro.junto { left: 74%; top: 74%; width: calc(var(--s) * var(--t-ouro) * .75); height: calc(var(--s) * var(--t-ouro) * .75); }
+  .item.wumpus.vivo { animation: respirar 2.4s ease-in-out infinite; }
+  .item.wumpus.morto-padrao img, .item.wumpus.morto-padrao .emoji { filter: grayscale(1) brightness(.6); transform: rotate(90deg) scale(.9); }
+  .item.surgir { animation: surgir .5s ease-out; }
+  @keyframes surgir { from { opacity: 0; transform: translate(-50%, -50%) scale(.3); } }
+  @keyframes brilhar {
+    0%, 100% { filter: drop-shadow(0 0 2px #ffd54a88); }
+    50% { filter: drop-shadow(0 0 10px #ffd54a); }
+  }
+  @keyframes respirar { 50% { transform: translate(-50%, -52%) scale(1.04); } }
+  .sprite { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .sprite img { width: 100%; height: 100%; object-fit: contain; user-select: none; pointer-events: none; }
+  .emoji { font-size: calc(var(--s) * .5); line-height: 1; }
+
+  /* agente: #agente (posição) > .ator (animações) > .corpo (direção) */
+  #agente { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); z-index: 6; pointer-events: none; }
+  #agente .ator { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #agente .corpo {
+    width: calc(var(--s) * var(--t-agente)); height: calc(var(--s) * var(--t-agente));
+    filter: drop-shadow(0 3px 4px #000c);
+  }
+  #agente .corpo .emoji { font-size: calc(var(--s) * .55); }
+  #agente .giro-seta { position: absolute; inset: 0; }
+  #agente .seta {
+    position: absolute; right: 1px; top: 50%; transform: translateY(-50%);
+    width: 0; height: 0; border-style: solid;
+    border-width: calc(var(--s) * .08) 0 calc(var(--s) * .08) calc(var(--s) * .12);
+    border-color: transparent transparent transparent var(--ouro);
+    filter: drop-shadow(0 0 3px #000);
+  }
+  #agente.oculto { opacity: 0; }
+  #agente.caindo .ator { animation: cair 1s ease-in forwards; }
+  @keyframes cair { to { transform: scale(0) rotate(540deg); opacity: 0; } }
+  #agente.devorado .ator { animation: devorado .9s ease-in forwards; }
+  @keyframes devorado { 30% { transform: scale(1.15); } to { transform: scale(.2); opacity: 0; } }
+  #agente.saindo .ator { animation: sair 1s ease-in forwards; }
+  @keyframes sair { to { transform: translateY(-30%) scale(.6); opacity: 0; } }
+
+  #flecha { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); z-index: 7; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+  #flecha .sprite { width: calc(var(--s) * var(--t-flecha)); height: calc(var(--s) * var(--t-flecha) * .3); }
+  #flecha .emoji { font-size: calc(var(--s) * .4); }
+
+  .flutuante {
+    position: absolute; z-index: 10; pointer-events: none; transform: translate(-50%, -50%);
+    font-weight: 800; font-size: calc(var(--s) * .2); white-space: nowrap;
+    text-shadow: 0 2px 4px #000, 0 0 10px #000;
+    animation: flutuar 1.3s ease-out forwards;
+  }
+  @keyframes flutuar {
+    0% { opacity: 0; transform: translate(-50%, -30%) scale(.7); }
+    15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    100% { opacity: 0; transform: translate(-50%, -150%) scale(1); }
+  }
+  #flash { position: absolute; inset: 0; z-index: 9; pointer-events: none; opacity: 0; }
+  #flash.ativo { animation: flash .7s ease-out; }
+  @keyframes flash { 0% { opacity: .75; } 100% { opacity: 0; } }
+
+  /* ------------------------------------------------------------ fim de jogo */
+  #fim {
+    position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+    background: #000a; backdrop-filter: blur(2px); animation: aparecer .35s ease-out;
+  }
+  @keyframes aparecer { from { opacity: 0; } }
+  #fim .caixa {
+    background: var(--painel); border: 1px solid var(--borda); border-radius: 14px;
+    padding: 20px 24px; text-align: center; max-width: 90%; box-shadow: 0 10px 40px #000;
+  }
+  #fim h3 { margin: 0 0 6px; font-size: 22px; }
+  #fim .pontos { font-size: 30px; font-weight: 800; margin: 6px 0 14px; }
+  #fim .botoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .vitoria { color: var(--bom); } .derrota { color: var(--perigo); } .neutro { color: var(--ouro); }
+
+  /* ------------------------------------------------------------ painel lateral */
+  .hud { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hud div { background: var(--painel2); border-radius: 8px; padding: 6px 10px; }
+  .hud small { display: block; color: var(--suave); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .hud b { font-size: 18px; }
+  #quem { margin: 0 0 10px; color: var(--suave); font-size: 13px; }
+  #quem b { color: var(--texto); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    padding: 4px 9px; border-radius: 999px; font-size: 13px; background: var(--painel2);
+    color: #fff4; border: 1px solid transparent; transition: all .25s;
+  }
+  .chip.ligado { color: #fff; border-color: currentColor; }
+  .chip.ligado[data-p=fedor] { color: #b9e27a; background: #2f3a1c; }
+  .chip.ligado[data-p=brisa] { color: #8fd3f5; background: #1b3140; }
+  .chip.ligado[data-p=brilho] { color: #ffd54a; background: #3d3212; }
+  .chip.ligado[data-p=baque] { color: #f0a070; background: #402818; }
+  .chip.ligado[data-p=grito] { color: #ff7a7a; background: #401a1a; }
+  #descricao { margin: 10px 0 0; color: var(--suave); font-size: 13px; min-height: 2.8em; }
+  .controles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .controles button { padding: 8px 4px; font-size: 14px; }
+  .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #velocidade { flex: 1; accent-color: var(--ouro); }
+  pre {
+    margin: 0; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow: auto;
+    font: 12px/1.45 ui-monospace, Consolas, monospace; color: var(--suave);
+  }
+  pre.erro { color: #ff9a8a; }
+  #log { max-height: 200px; overflow: auto; font: 12px/1.6 ui-monospace, Consolas, monospace; color: var(--suave); }
+  #log div:first-child { color: var(--texto); }
+  .legenda { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 13px; color: var(--suave); }
+  [hidden] { display: none !important; }
+</style>
+<!-- TEMA: apague a linha abaixo para voltar ao visual original -->
+<link rel="stylesheet" href="tema/minecraft.css">
+</head>
+<body>
+<header>
+  <h1><span class="icone">🏹</span> Mundo Wumpus</h1>
+  <form id="config">
+    <label>Quem joga <select id="modo"></select></label>
+    <label>Semente <input id="semente" type="number" value="0"></label>
+    <button type="button" id="sortear" title="Semente aleatória">🎲</button>
+    <label><input id="classico" type="checkbox"> Mundo clássico (livro)</label>
+    <label id="rotulo-nevoa"><input id="nevoa" type="checkbox"> Névoa</label>
+    <label><input id="sem_posicao" type="checkbox"> Sem posição</label>
+    <button type="submit" class="primario">Novo jogo <kbd>R</kbd></button>
+  </form>
+</header>
+
+<main>
+  <section id="area">
+    <div id="moldura">
+      <div id="tabuleiro"></div>
+    </div>
+  </section>
+
+  <aside id="lateral">
+    <div class="cartao">
+      <p id="quem"></p>
+      <div class="hud">
+        <div><small>Pontuação</small><b id="h-pontos">0</b></div>
+        <div><small>Ações</small><b id="h-acoes">0</b></div>
+        <div><small>Flecha</small><b id="h-flecha">🏹</b></div>
+        <div><small>Ouro</small><b id="h-ouro">—</b></div>
+      </div>
+    </div>
+
+    <div class="cartao">
+      <h2>Percepção</h2>
+      <div class="chips">
+        <span class="chip" data-p="fedor">🤢 Fedor</span>
+        <span class="chip" data-p="brisa">💨 Brisa</span>
+        <span class="chip" data-p="brilho">✨ Brilho</span>
+        <span class="chip" data-p="baque">💥 Baque</span>
+        <span class="chip" data-p="grito">😱 Grito</span>
+      </div>
+      <p id="descricao"></p>
+    </div>
+
+    <div class="cartao" id="painel-humano">
+      <h2>Ações</h2>
+      <div class="controles">
+        <button data-acao="virar_esquerda">↺ Esquerda<kbd>A</kbd></button>
+        <button data-acao="avancar">⬆ Avançar<kbd>W</kbd></button>
+        <button data-acao="virar_direita">↻ Direita<kbd>D</kbd></button>
+        <button data-acao="agarrar">✋ Agarrar<kbd>G</kbd></button>
+        <button data-acao="atirar">🏹 Atirar<kbd>F</kbd></button>
+        <button data-acao="sair">🚪 Sair<kbd>S</kbd></button>
+      </div>
+    </div>
+
+    <div class="cartao" id="painel-agente" hidden>
+      <h2>Agente</h2>
+      <div class="linha">
+        <button id="passo">⏭ Passo <kbd>Espaço</kbd></button>
+        <button id="auto" class="primario">▶ Jogar sozinho <kbd>P</kbd></button>
+      </div>
+      <div class="linha" style="margin-top:10px">
+        <small style="color:var(--suave)">Velocidade</small>
+        <input id="velocidade" type="range" min="1" max="5" value="3">
+      </div>
+      <div id="bloco-depurar" style="margin-top:10px" hidden>
+        <h2>depurar()</h2>
+        <pre id="depurar"></pre>
+      </div>
+    </div>
+
+    <div class="cartao" id="bloco-erro" hidden>
+      <h2 style="color:var(--perigo)">Erro</h2>
+      <pre id="erro" class="erro"></pre>
+    </div>
+
+    <div class="cartao">
+      <h2>Histórico</h2>
+      <div id="log"></div>
+    </div>
+
+    <div class="cartao">
+      <h2>Legenda</h2>
+      <div class="legenda">
+        <span>💨 sentiu brisa</span><span>🤢 sentiu fedor</span>
+        <span>? casa desconhecida</span><span>▶ direção do agente</span>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- As imagens são configuradas em config.js -->
+<script src="config.js"></script>
+<script src="jogo.js"></script>
+</body>
+</html>

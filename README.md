@@ -33,6 +33,18 @@ python jogar.py --agente aleatorio --classico # assista o agente de exemplo
 python experimento.py aleatorio               # experimento com o agente de exemplo
 ```
 
+## Versão visual (navegador)
+
+```bash
+python jogar_visual.py                         # você joga; abre o navegador sozinho
+python jogar_visual.py --agente B --classico   # assiste o agente B jogando
+python jogar_visual.py --agente C --nevoa      # esconde o que o agente não visitou
+```
+
+Teclas: `W`/`↑` avançar · `A`/`←` e `D`/`→` virar · `G` agarrar · `F`/`Espaço` atirar · `S` sair · `R` reiniciar. Assistindo um agente: `Espaço` dá um passo, `P` liga/desliga o modo automático.
+
+**Trocar as imagens:** coloque os arquivos em `visual/imagens/` e altere os caminhos em `visual/config.js` (personagem, Wumpus, ouro, poço, flecha, chão e imagens opcionais por direção, andando, com ouro e morto). Depois é só apertar F5 no navegador. A versão visual usa o simulador de `wumpus/` sem nenhuma alteração.
+
 ## A interface (o que todo agente precisa respeitar)
 
 ```python

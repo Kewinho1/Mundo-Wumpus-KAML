@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30">
+  <!-- Flecha apontando para a DIREITA -->
+  <rect x="14" y="13" width="68" height="4" rx="2" fill="#8a5a2b"/>
+  <path d="M80 5 L99 15 L80 25 L84 15 Z" fill="#cfd4da" stroke="#6b7078" stroke-width="1.5"/>
+  <path d="M2 6 L20 13 L16 15 L20 17 L2 24 L8 15 Z" fill="#c0392b"/>
+</svg>
