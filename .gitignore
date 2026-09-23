@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Resultados gerados pelo experimento.py (gere de novo quando precisar)
+*.csv
+
+# Logs e arquivos do sistema/editor
+*.log
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
